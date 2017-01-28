@@ -1,0 +1,180 @@
+package com.mapreduce.classes;
+
+import java.io.IOException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+//import org.apache.hadoop.io.FloatWritable;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.WritableComparable;
+import org.apache.hadoop.io.WritableComparator;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+//import org.apache.hadoop.mapreduce.Partitioner;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+
+public class SortinginMR {
+
+    public class SortKeyComparator extends WritableComparator {
+
+        protected SortKeyComparator() {
+            super(Text.class, true);
+        }
+        Text result;
+        /**
+         * Need to implement our sorting mechanism.
+         */
+        @SuppressWarnings("rawtypes")
+        @Override
+        public Text compare(WritableComparable a, WritableComparable b) {
+            Text key1 = (Text) a;
+            Text key2 = (Text) b;
+
+            // Implemet sorting in descending order
+            if(key1.compareTo(key2)>0)
+            {
+                
+                result = key1;
+            }
+            else
+            {
+                result = key2;
+            }
+            return result;
+     }
+    }
+
+//        public static class CompanyPartitioner extends Partitioner<Text, IntWritable> {
+//            @Override
+//            public int getPartition(Text key, IntWritable value, int numReduceTasks) {
+//
+//            //String [] record = value.toString().split("\\|");
+//            
+//            String companyname = key.toString();
+//
+//            //String companyname = record[0];
+//            
+//            if(companyname.equals("Onida"))
+//            {
+//            return 0;
+//            }
+//            
+//            if(companyname.equals("Samsung"))
+//            {
+//                return 1 ;
+//            }
+//            
+//            if(companyname.equals("Lava"))
+//            {
+//                return 2;
+//            }
+//            
+//            else
+//            
+//                return 3;
+//
+//            }
+//
+//            }
+
+        
+        
+        //public static final IntWritable one = new IntWritable(1);
+        public static class groupingMapper extends Mapper<LongWritable, Text, Text,IntWritable>{
+
+            //private static final Logger _logger = Logger.getLogger(FilteringMapper.class);
+
+            public void map(LongWritable key, Text rec, Context con) {
+                
+                String record = rec.toString();
+                String[] s = record.split("\\|");
+                String companyname = s[0];
+//                String productname = s[1];
+//                String size = s[2];
+//                String state = s[3];
+//                String pc = s[4];
+                 Integer price = Integer.parseInt(s[5]);
+                if(!((companyname.equalsIgnoreCase("NA"))))
+                {
+                    try {
+                        con.write(new Text(companyname),new IntWritable(price));
+                    } catch (IOException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    } catch (InterruptedException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+        public static class groupingReducer extends Reducer<Text, IntWritable, Text,IntWritable>{
+
+            //private static final Logger _logger = Logger.getLogger(FilteringMapper.class);
+
+            public void reduce(Text key, Iterable<IntWritable> values, Context context) {
+                
+                int sum = 0;
+                IntWritable result = new IntWritable();
+                {
+                    try {
+                        for (IntWritable val : values) {
+                            
+                            sum+= val.get();
+                        }
+                        result.set(sum);
+                        context.write(key,result);
+                    } catch (IOException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    } catch (InterruptedException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+        public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
+             
+                Configuration conf = new Configuration();
+                       
+                 @SuppressWarnings("deprecation")
+                 
+                   Job job = new Job(conf, "filterdata");
+                   
+                   job.setJarByClass(SortinginMR.class);
+                   
+                   job.setOutputKeyClass(Text.class);
+                   
+                   job.setOutputValueClass(IntWritable.class);
+                       
+                   job.setMapperClass(groupingMapper.class);
+                   
+                   job.setReducerClass(groupingReducer.class);
+                   
+                  
+                   
+                   job.setSortComparatorClass(SortKeyComparator.class);
+                   
+                   job.setPartitionerClass(CompanyPartitioner.class);
+                   
+                   job.setNumReduceTasks(4);
+                                                            
+                   job.setInputFormatClass(TextInputFormat.class);
+                   
+                   job.setOutputFormatClass(TextOutputFormat.class);
+                       
+                   FileInputFormat.setInputPaths(job, new Path(args[0]));
+                   
+                   FileOutputFormat.setOutputPath(job, new Path(args[1]));
+                       
+                   job.waitForCompletion(true);
+
+    }
+    
+ }
